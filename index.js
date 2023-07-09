@@ -140,7 +140,7 @@ async function main(table_name) {
             console.log('No Data To Process...')
         } else {
             for (let count = parseInt(process.env.SKIP); count < Count; count += 10) { // parseInt(process.env.LIMIT)
-                const fullData = await Find(table_name, { $or: [{ translated: { $exists: false } }, { translated: false }] }, count, 10, {});
+                const fullData = await Find(table_name, { $or: [{ translated: { $exists: false } }, { translated: false }] }, 0, 10, {});
                 let dataToInsert = [];
                 console.log('skip', count, 'limit', count + 10, dataToInsert.length)
                 for (let d of fullData) {
