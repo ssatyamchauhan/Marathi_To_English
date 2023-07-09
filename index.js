@@ -12,9 +12,10 @@ const axios = require("axios").default;
 const ObjectID = require('mongodb').ObjectID;
 const app = express()
 const PORT = process.env.PORT || 6000;
-const table_name = "result_collections"
+let table_name = process.env.TABLES || "result_collections"
 app.use(cors());
-
+table_name = table_name.split(",");
+console.log('table_to_process', table_name)
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 app.use(morgan('dev'));
@@ -127,14 +128,14 @@ async function htmltoJson(text_to_en) {
     }
 }
 
-async function main() {
+async function main(table_name) {
     try {
         const { Find, UpdateMany, TotalCount } = require("./library/IGR/methods");
         const { Insert } = require("./library/methods");
         // console.log(fullData);
         // return
         const Count = await TotalCount(table_name, { $or: [{ translated: { $exists: false } }, { translated: false }] });
-        console.log('Total Data In FLASK_DB to be process...', Count);
+        console.log(`Total Data In ${table_name} to be process...`, Count);
         if (!Count) {
             console.log('No Data To Process...')
         } else {
@@ -144,6 +145,9 @@ async function main() {
                 console.log('skip', count, 'limit', count + 10, dataToInsert.length)
                 for (let d of fullData) {
                     // console.log('d',d.d_name)
+                    if(d?.additional_data) {
+                        d = d.additional_data;
+                    }
                     if (d.district && d.district.length) {
                         const translate_district = await translate(d.district);
                         if (translate_district) {
@@ -239,7 +243,7 @@ async function main() {
                         const translate_property_description = await translate(d.DName);
                         if (translate_property_description) {
                             d.DName = translate_property_description;
-                        }
+                          }
                     }
 
                     if (d.SROName && d.SROName.length) {
@@ -419,13 +423,16 @@ async function main() {
 
                     dataToInsert.push(da);
                 }
-                const ids = fullData.map((obj) => obj._id);
-                await Insert(table_name, dataToInsert);
-                await UpdateMany(table_name, { _id: { $in: ids } }, { translated: true });
+
+                const ids = fullData && fullData.length ? fullData.map((obj) => obj._id) : [];
+                if(dataToInsert && dataToInsert.length) {
+                      await Insert(table_name, dataToInsert);
+                      await UpdateMany(table_name, { _id: { $in: ids } }, { translated: true });
+               }
             }
         }
 
-        setTimeout(main, 10000) // function calling itself
+//        setTimeout(main, 10000) // function calling itself
     } catch (error) {
         console.error('Error in main function', error);
     }
@@ -433,8 +440,10 @@ async function main() {
 
 DEV_Mongodb().then((db) => {
     IGR_MONGODB().then(() => {
-        app.listen(PORT, () => {
-            main()
+        app.listen(PORT, async () => {
+           for (let table of table_name) {
+            await main(table)
+           }
             console.info("You App is listening", `http://localhost:${PORT}`)
         })
     }).catch((error) => console.error('Error Connection IGR DB....', error));

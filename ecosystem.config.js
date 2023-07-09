@@ -1,6 +1,6 @@
 module.exports = {
   apps : [{
     script: 'index.js',
-    name: "English_Conversion_Script"
+    name: "Andra_Conversion_Script"
   }]
 };
